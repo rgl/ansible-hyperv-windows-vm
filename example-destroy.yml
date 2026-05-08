@@ -1,0 +1,12 @@
+- name: Destroy Virtual Machine
+  hosts:
+    - vms
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Destroy Virtual Machine
+      delegate_to: hv
+      block:
+        - name: Destroy Virtual Machine
+          ansible.builtin.import_role:
+            name: vm_destroy

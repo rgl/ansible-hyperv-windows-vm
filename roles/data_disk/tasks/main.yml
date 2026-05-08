@@ -1,0 +1,35 @@
+# NB cloud-init data volume normally is assigned the D drive letter, which
+#    we want to use in our data disk.
+# see https://github.com/ansible-collections/community.windows/issues/135
+- name: Remove the cloud-init data disk drive letter
+  ansible.windows.win_powershell:
+    script: |
+      Set-StrictMode -Version Latest
+      $ErrorActionPreference = 'Stop'
+      $ProgressPreference = 'SilentlyContinue'
+      $Ansible.Changed = $false
+      $volume = Get-Volume -FileSystemLabel cidata -ErrorAction SilentlyContinue
+      if ($volume -and $volume.DriveLetter) {
+        $stdout = mountvol.exe "$($volume.DriveLetter):" /d
+        if ($LASTEXITCODE) {
+          throw "Failed to remove the cloud-init data disk drive letter $($volume.DriveLetter): #$LASTEXITCODE $stdout"
+        }
+        $Ansible.Changed = $true
+      }
+
+- name: Initialize the data disk
+  community.windows.win_initialize_disk:
+    disk_number: "{{ data_disk_number }}"
+    style: gpt
+
+- name: Partition the data disk
+  community.windows.win_partition:
+    disk_number: "{{ data_disk_number }}"
+    drive_letter: "{{ data_disk_letter }}"
+    partition_size: -1
+
+- name: Create the data filesystem
+  community.windows.win_format:
+    drive_letter: "{{ data_disk_letter }}"
+    file_system: ntfs
+    new_label: data

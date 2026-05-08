@@ -1,0 +1,162 @@
+- name: Create Virtual Machine
+  vars:
+    vm_create_name: "{{ inventory_hostname }}"
+    # see https://en.wikipedia.org/wiki/MAC_address#Ranges_of_group_and_locally_administered_addresses
+    vm_create_mac_address: "{{ '02:00:00' | community.general.random_mac(seed=inventory_hostname) }}"
+  block:
+    # create the cloudbase-init facts.
+    # see https://github.com/cloudbase/cloudbase-init
+    # see https://cloudbase-init.readthedocs.io/en/1.1.8/userdata.html#cloud-config
+    # see https://cloudbase-init.readthedocs.io/en/1.1.8/userdata.html#userdata
+    # see https://cloudbase-init.readthedocs.io/en/1.1.8/services.html#nocloud-configuration-drive
+    # see https://registry.terraform.io/providers/hashicorp/cloudinit/latest/docs/data-sources/config
+    # see https://www.terraform.io/docs/configuration/expressions.html#string-literals
+    - name: Set the Virtual Machine cloudbase-init facts
+      ansible.builtin.set_fact:
+        vm_create_cloudbase_init_meta_data:
+          instance-id: "{{ vm_create_name }}"
+        vm_create_cloudbase_init_network_config:
+          version: 2
+          ethernets:
+            eth0:
+              match:
+                macaddress: "{{ vm_create_mac_address }}"
+              addresses:
+                - "{{ ansible_host }}/24"
+              gateway4: "{{ vm_gateway }}"
+              nameservers:
+                addresses:
+                  - "{{ vm_gateway }}"
+        vm_create_cloudbase_init_config:
+          hostname: "{{ vm_create_name }}"
+          timezone: Europe/Lisbon
+          users:
+            - name: "{{ ansible_user }}"
+              passwd: "{{ ansible_password }}"
+              primary_group: Administrators
+    - name: Create Virtual Machine
+      microsoft.hyperv.hv_vm:
+        name: "{{ vm_create_name }}"
+        generation: 2
+        boot_device: VHD
+        notes: |
+          note 1
+          note 2
+          note 3
+    - name: Configure Virtual Machine Tags
+      microsoft.hyperv.hv_vm_tag:
+        name: "{{ vm_create_name }}"
+        state: exact
+        tags:
+          template: "{{ vm_template }}"
+          ansible_project_path: "{{ vm_ansible_project_path }}"
+    - name: Configure Virtual Machine Processor
+      microsoft.hyperv.hv_processor:
+        name: "{{ vm_create_name }}"
+        count: 4
+    - name: Configure Virtual Machine Memory
+      microsoft.hyperv.hv_memory:
+        name: "{{ vm_create_name }}"
+        startup_bytes: 4GB
+    - name: Configure Virtual Machine Boot
+      microsoft.hyperv.hv_vm_boot:
+        name: "{{ vm_create_name }}"
+        secure_boot: false
+    - name: Create Virtual Machine Boot Disk
+      register: vm_create_boot_disk
+      microsoft.hyperv.hv_vhd:
+        parent_path: "{{ vm_template }}"
+        path: "{{ vm_storage }}\\{{ vm_create_name }}-boot.vhdx"
+        vhd_type: Differencing
+    - name: Attach Virtual Machine Boot Disk
+      microsoft.hyperv.hv_hard_disk:
+        vm_name: "{{ vm_create_name }}"
+        path: "{{ vm_create_boot_disk.path }}"
+        controller_type: SCSI
+        controller_location: 0
+    - name: Create Virtual Machine Data Disk
+      register: vm_create_data_disk
+      microsoft.hyperv.hv_vhd:
+        path: "{{ vm_storage }}\\{{ vm_create_name }}-data.vhdx"
+        size_bytes: "10GB"
+        vhd_type: Dynamic
+    - name: Attach Virtual Machine Data Disk
+      microsoft.hyperv.hv_hard_disk:
+        vm_name: "{{ vm_create_name }}"
+        path: "{{ vm_create_data_disk.path }}"
+        controller_type: SCSI
+        controller_location: 1
+    - name: Create cidata ISO
+      register: vm_create_cidata_iso
+      win_cidata_iso:
+        path: "{{ vm_storage }}\\{{ vm_create_name }}-cidata.iso"
+        meta_data: "{{ vm_create_cloudbase_init_meta_data | ansible.builtin.to_yaml }}"
+        network_config: "{{ vm_create_cloudbase_init_network_config | ansible.builtin.to_yaml }}"
+        user_data: "{{ (\"#cloud-config\n\" + (vm_create_cloudbase_init_config | ansible.builtin.to_yaml)) }}"
+    - name: Mount Virtual Machine cidata ISO DVD Drive
+      microsoft.hyperv.hv_dvd_drive:
+        vm_name: "{{ vm_create_name }}"
+        path: "{{ vm_create_cidata_iso.path }}"
+        controller_location: 63
+        state: mounted
+    - name: Create Virtual Machine Network Adapter
+      microsoft.hyperv.hv_network_adapter:
+        vm_name: "{{ vm_create_name }}"
+        mac_address: "{{ vm_create_mac_address }}"
+        switch_name: "{{ vm_switch }}"
+        vlan_mode: "{{ vm_vlan_mode }}"
+        vlan_id: "{{ vm_vlan_id }}"
+    # TODO when available, replace this with the hv_integration_service module.
+    - name: Enable Virtual Machine Integration Services
+      ansible.windows.win_powershell:
+        parameters:
+          vm_name: "{{ vm_create_name }}"
+        script: |
+          param(
+            [string]$vm_name
+          )
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $Ansible.Changed = $false
+          # NB because, for some reason, sometimes "Guest Service Interface" (aka "Guest Services") is not enabled.
+          $disabledIntegrationServices = Get-VMIntegrationService $vm_name | Where-Object { -not $_.Enabled }
+          if ($disabledIntegrationServices) {
+            $disabledIntegrationServices | Enable-VMIntegrationService
+            $Ansible.Changed = $true
+          }
+    - name: Set Virtual Machine Boot Order
+      microsoft.hyperv.hv_vm_boot:
+        vm_name: "{{ vm_create_name }}"
+        boot_order:
+          - SCSI
+    - name: Start Virtual Machine
+      microsoft.hyperv.hv_vm_state:
+        name: "{{ vm_create_name }}"
+        state: running
+    - name: Wait Virtual Machine IP Address
+      microsoft.hyperv.hv_vm_guest_wait:
+        name: "{{ vm_create_name }}"
+        expected_ip: "{{ ansible_host }}"
+    - name: Wait Virtual Machine OpenSSH
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 22
+        delay: 5
+        timeout: 300 # 5m
+        search_regex: OpenSSH
+      delegate_to: localhost
+    - name: Execute a guest command
+      microsoft.hyperv.hv_guest_command:
+        name: "{{ vm_create_name }}"
+        guest_credential:
+          username: "{{ ansible_user }}"
+          password: "{{ ansible_password }}"
+        script: |
+          $PSVersionTable
+      register: vm_create_guest_command
+    - name: Show guest command result
+      ansible.builtin.debug:
+        msg:
+          - "STDOUT:\n{{ vm_create_guest_command.stdout }}"
+          - "STDERR:\n{{ vm_create_guest_command.stderr }}"

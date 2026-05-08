@@ -1,0 +1,62 @@
+# syntax=docker.io/docker/dockerfile:1.23
+
+# debian 13 (trixie).
+FROM debian:13-slim
+
+# install ansible dependencies.
+# see https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#installing-ansible-with-pip
+RUN <<EOF
+#!/bin/bash
+set -euxo pipefail
+apt-get update
+apt-get install -y --no-install-recommends \
+    git \
+    libnss3-tools \
+    openssh-client \
+    pylint \
+    python3-argcomplete \
+    python3-cryptography \
+    python3-netaddr \
+    python3-openssl \
+    python3-pip \
+    python3-requests \
+    python3-venv \
+    python3-yaml \
+    sshpass
+apt-get clean
+rm -rf /var/lib/apt/lists/*
+install -d /etc/bash_completion.d
+activate-global-python-argcomplete
+python3 -m venv --system-site-packages /opt/venv
+EOF
+ENV PATH="/opt/venv/bin:$PATH"
+
+# install ansible.
+# NB this pip install will display several "error: invalid command 'bdist_wheel'"
+#    messages, those can be ignored.
+COPY requirements.txt .
+RUN <<EOF
+#!/bin/bash
+set -euxo pipefail
+python -m pip \
+    --disable-pip-version-check \
+    --no-cache-dir \
+    install \
+    -r requirements.txt
+EOF
+
+# install ansible collections and roles.
+COPY requirements.yml .
+RUN <<EOF
+#!/bin/bash
+set -euxo pipefail
+ansible-galaxy collection install \
+    -r requirements.yml \
+    -p /usr/share/ansible/collections
+ansible-galaxy role install \
+    -r requirements.yml \
+    -p /usr/share/ansible/roles
+EOF
+
+# set the working directory.
+WORKDIR /project

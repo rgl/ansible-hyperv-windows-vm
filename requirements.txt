@@ -1,0 +1,8 @@
+# see https://pypi.org/project/ansible-core/
+ansible-core==2.20.5
+
+# see https://pypi.org/project/ansible-lint/
+ansible-lint==26.4.0
+
+# see https://pypi.org/project/pypsrp/
+pypsrp[credssp]==0.9.1

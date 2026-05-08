@@ -1,0 +1,20 @@
+- name: Destroy Virtual Machine
+  vars:
+    vm_name: "{{ inventory_hostname }}"
+  block:
+    - name: Destroy Virtual Machine
+      microsoft.hyperv.hv_vm:
+        name: "{{ vm_name }}"
+        state: absent
+    - name: Destroy Virtual Machine Boot Disk
+      microsoft.hyperv.hv_vhd:
+        path: "{{ vm_storage }}\\{{ vm_name }}-boot.vhdx"
+        state: absent
+    - name: Destroy Virtual Machine Data Disk
+      microsoft.hyperv.hv_vhd:
+        path: "{{ vm_storage }}\\{{ vm_name }}-data.vhdx"
+        state: absent
+    - name: Destroy Virtual Machine cidata ISO
+      ansible.windows.win_file:
+        path: "{{ vm_storage }}\\{{ vm_name }}-cidata.iso"
+        state: absent

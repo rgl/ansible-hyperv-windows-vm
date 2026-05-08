@@ -1,0 +1,38 @@
+all:
+  children:
+    hvs:
+      hosts:
+        hv:
+      vars:
+        # connection configuration.
+        # see https://docs.ansible.com/ansible-core/2.20/collections/ansible/builtin/psrp_connection.html
+        ansible_host: '{{ lookup("env", "VM_HYPERV_HOSTNAME") }}'
+        ansible_user: '{{ lookup("env", "VM_HYPERV_USERNAME") }}'
+        ansible_password: '{{ lookup("env", "VM_HYPERV_PASSWORD") }}'
+        ansible_connection: psrp
+        ansible_psrp_protocol: http
+        ansible_psrp_message_encryption: never
+        ansible_psrp_auth: credssp
+    vms:
+      hosts:
+        vm1:
+          ansible_host: '{{ vm_first_ip | ansible.utils.ipmath(0) }}'
+        vm2:
+          ansible_host: '{{ vm_first_ip | ansible.utils.ipmath(1) }}'
+      vars:
+        # see https://docs.ansible.com/ansible-core/2.20/collections/ansible/builtin/psrp_connection.html
+        ansible_user: vagrant
+        ansible_password: vagrant
+        ansible_connection: psrp
+        ansible_psrp_protocol: http
+        ansible_psrp_message_encryption: never
+        ansible_psrp_auth: credssp
+  vars:
+    vm_switch: '{{ lookup("env", "VM_SWITCH") }}'
+    vm_vlan_mode: '{{ lookup("env", "VM_VLAN_MODE") | default(None, true) }}'
+    vm_vlan_id: '{{ lookup("env", "VM_VLAN_ID") | default(None, true) }}'
+    vm_gateway: '{{ lookup("env", "VM_GATEWAY") }}'
+    vm_first_ip: '{{ lookup("env", "VM_FIRST_IP") }}'
+    vm_ansible_project_path: '{{ lookup("env", "VM_ANSIBLE_PROJECT_PATH") }}'
+    vm_template: '{{ lookup("env", "VM_HYPERV_TEMPLATE") }}'
+    vm_storage: '{{ lookup("env", "VM_HYPERV_STORAGE") }}'

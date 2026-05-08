@@ -1,0 +1,15 @@
+- name: Install Chocolatey
+  chocolatey.chocolatey.win_chocolatey:
+    name: chocolatey
+    # see https://community.chocolatey.org/packages/chocolatey
+    # renovate: datasource=nuget:chocolatey depName=chocolatey
+    version: '2.7.1'
+    state: downgrade
+
+- name: Install Notepad3
+  chocolatey.chocolatey.win_chocolatey:
+    name: notepad3
+    # https://community.chocolatey.org/packages/notepad3
+    # renovate: datasource=nuget:chocolatey depName=notepad3
+    version: '7.26.426.1'
+    state: downgrade
