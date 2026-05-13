@@ -1,3 +1,23 @@
+- name: Disable the password complexity policy
+  community.windows.win_security_policy:
+    section: System Access
+    key: PasswordComplexity
+    value: 0
+  register: base_password_complexity_policy
+
+- name: Update the policy settings
+  ansible.windows.win_command: gpupdate /force
+  when: base_password_complexity_policy.changed
+
+- name: Create the alice user
+  ansible.windows.win_user:
+    name: alice
+    password: "{{ ansible_password }}"
+    update_password: on_create
+    password_never_expires: true
+    groups:
+      - Users
+
 - name: Install Chocolatey
   chocolatey.chocolatey.win_chocolatey:
     name: chocolatey
