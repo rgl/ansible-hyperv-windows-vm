@@ -148,6 +148,7 @@
         search_regex: OpenSSH
       delegate_to: localhost
     - name: Execute a guest command
+      changed_when: false
       microsoft.hyperv.hv_guest_command:
         name: "{{ vm_create_name }}"
         guest_credential:

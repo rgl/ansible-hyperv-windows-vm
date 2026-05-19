@@ -5,7 +5,7 @@ all:
         hv:
       vars:
         # connection configuration.
-        # see https://docs.ansible.com/ansible-core/2.20/collections/ansible/builtin/psrp_connection.html
+        # see https://docs.ansible.com/ansible-core/2.21/collections/ansible/builtin/psrp_connection.html
         ansible_host: '{{ lookup("env", "VM_HYPERV_HOSTNAME") }}'
         ansible_user: '{{ lookup("env", "VM_HYPERV_USERNAME") }}'
         ansible_password: '{{ lookup("env", "VM_HYPERV_PASSWORD") }}'
@@ -20,7 +20,7 @@ all:
         vm2:
           ansible_host: '{{ vm_first_ip | ansible.utils.ipmath(1) }}'
       vars:
-        # see https://docs.ansible.com/ansible-core/2.20/collections/ansible/builtin/psrp_connection.html
+        # see https://docs.ansible.com/ansible-core/2.21/collections/ansible/builtin/psrp_connection.html
         ansible_user: vagrant
         ansible_password: vagrant
         ansible_connection: psrp

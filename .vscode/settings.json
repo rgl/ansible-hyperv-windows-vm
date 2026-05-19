@@ -3,6 +3,7 @@
         "cloudbase",
         "ethernets",
         "guestinfo",
+        "hyperv",
         "runcmd",
         "userdata"
     ]
