@@ -63,19 +63,20 @@
         name: "{{ vm_create_name }}"
         secure_boot: false
     - name: Create Virtual Machine Boot Disk
-      register: vm_create_boot_disk
+      register: vm_create_boot_vhd
       microsoft.hyperv.hv_vhd:
         parent_path: "{{ vm_template }}"
         path: "{{ vm_storage }}\\{{ vm_create_name }}-boot.vhdx"
         vhd_type: Differencing
     - name: Attach Virtual Machine Boot Disk
+      register: vm_create_boot_hd
       microsoft.hyperv.hv_hard_disk:
         vm_name: "{{ vm_create_name }}"
-        path: "{{ vm_create_boot_disk.path }}"
+        path: "{{ vm_create_boot_vhd.path }}"
         controller_type: SCSI
         controller_location: 0
     - name: Create Virtual Machine Data Disk
-      register: vm_create_data_disk
+      register: vm_create_data_vhd
       microsoft.hyperv.hv_vhd:
         path: "{{ vm_storage }}\\{{ vm_create_name }}-data.vhdx"
         size_bytes: "10GB"
@@ -83,7 +84,7 @@
     - name: Attach Virtual Machine Data Disk
       microsoft.hyperv.hv_hard_disk:
         vm_name: "{{ vm_create_name }}"
-        path: "{{ vm_create_data_disk.path }}"
+        path: "{{ vm_create_data_vhd.path }}"
         controller_type: SCSI
         controller_location: 1
     - name: Create cidata ISO
@@ -129,7 +130,7 @@
       microsoft.hyperv.hv_vm_boot:
         vm_name: "{{ vm_create_name }}"
         boot_order:
-          - SCSI
+          - "{{ vm_create_boot_hd.controller_type }}:{{ vm_create_boot_hd.controller_number }}:{{ vm_create_boot_hd.controller_location }}"
     - name: Start Virtual Machine
       microsoft.hyperv.hv_vm_state:
         name: "{{ vm_create_name }}"
