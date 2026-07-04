@@ -34,6 +34,8 @@ export VM_SWITCH='Bridge'
 #export VM_VLAN_ID='1'
 export VM_GATEWAY='192.168.8.1'
 export VM_FIRST_IP='192.168.8.200'
+export VM_USERNAME='vagrant'
+export VM_PASSWORD='HeyH0Password'
 EOF
 source secrets.sh
 ```

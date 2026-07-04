@@ -42,7 +42,8 @@ exec docker run \
     -e VM_VLAN_ID \
     -e VM_GATEWAY \
     -e VM_FIRST_IP \
-    -e VM_ADMIN_PASSWORD \
+    -e VM_USERNAME \
+    -e VM_PASSWORD \
     "$ansible_iid" \
     "$command" \
     "$@"

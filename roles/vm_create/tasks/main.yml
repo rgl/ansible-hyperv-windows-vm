@@ -4,18 +4,25 @@
     # see https://en.wikipedia.org/wiki/MAC_address#Ranges_of_group_and_locally_administered_addresses
     vm_create_mac_address: "{{ '02:00:00' | community.general.random_mac(seed=inventory_hostname) }}"
   block:
-    # create the cloudbase-init facts.
-    # see https://github.com/cloudbase/cloudbase-init
-    # see https://cloudbase-init.readthedocs.io/en/1.1.8/userdata.html#cloud-config
-    # see https://cloudbase-init.readthedocs.io/en/1.1.8/userdata.html#userdata
-    # see https://cloudbase-init.readthedocs.io/en/1.1.8/services.html#nocloud-configuration-drive
+    # create the eryph guest-services cloud-init facts.
+    # see https://github.com/eryph-org/guest-services
+    # see https://github.com/eryph-org/guest-services#windows-cloud-init-alternative-wip
+    # see https://github.com/eryph-org/guest-services/blob/v0.6.0/docs/user/index.md
+    # see https://github.com/eryph-org/guest-services/blob/v0.6.0/docs/user/howto/configure-networking.md
+    # see https://github.com/eryph-org/guest-services/blob/v0.6.0/docs/user/reference/modules.md#applynetworkconfig
+    # see https://github.com/eryph-org/guest-services/blob/v0.6.0/src/Eryph.GuestServices.CloudConfig/Configs/CloudConfig.cs
+    # see https://github.com/eryph-org/guest-services/blob/v0.6.0/src/Eryph.GuestServices.Provisioning/Modules/ApplyNetworkConfigModule.cs
+    # see %ProgramData%\eryph\guest-services\logs\
+    # see %ProgramData%\eryph\provisioning\state.json
+    # see %ProgramData%\eryph\provisioning\logs\
+    # see egs-tool get-data --json <VM-ID> | jq .eryph.provisioning.error
     # see https://registry.terraform.io/providers/hashicorp/cloudinit/latest/docs/data-sources/config
     # see https://www.terraform.io/docs/configuration/expressions.html#string-literals
-    - name: Set the Virtual Machine cloudbase-init facts
+    - name: Set the Virtual Machine cloud-init facts
       ansible.builtin.set_fact:
-        vm_create_cloudbase_init_meta_data:
+        vm_create_cloud_init_meta_data:
           instance-id: "{{ vm_create_name }}"
-        vm_create_cloudbase_init_network_config:
+        vm_create_cloud_init_network_config:
           version: 2
           ethernets:
             eth0:
@@ -23,16 +30,18 @@
                 macaddress: "{{ vm_create_mac_address }}"
               addresses:
                 - "{{ ansible_host }}/24"
-              gateway4: "{{ vm_gateway }}"
+              routes:
+                - to: 0.0.0.0/0
+                  via: "{{ vm_gateway }}"
               nameservers:
                 addresses:
                   - "{{ vm_gateway }}"
-        vm_create_cloudbase_init_config:
+        vm_create_cloud_init_config:
           hostname: "{{ vm_create_name }}"
           timezone: Europe/Lisbon
           users:
             - name: "{{ ansible_user }}"
-              passwd: "{{ ansible_password }}"
+              plain_text_passwd: "{{ ansible_password }}"
               primary_group: Administrators
     - name: Create Virtual Machine
       microsoft.hyperv.hv_vm:
@@ -91,9 +100,9 @@
       register: vm_create_cidata_iso
       win_cidata_iso:
         path: "{{ vm_storage }}\\{{ vm_create_name }}-cidata.iso"
-        meta_data: "{{ vm_create_cloudbase_init_meta_data | ansible.builtin.to_yaml }}"
-        network_config: "{{ vm_create_cloudbase_init_network_config | ansible.builtin.to_yaml }}"
-        user_data: "{{ (\"#cloud-config\n\" + (vm_create_cloudbase_init_config | ansible.builtin.to_yaml)) }}"
+        meta_data: "{{ vm_create_cloud_init_meta_data | ansible.builtin.to_yaml }}"
+        network_config: "{{ vm_create_cloud_init_network_config | ansible.builtin.to_yaml }}"
+        user_data: "{{ (\"#cloud-config\n\" + (vm_create_cloud_init_config | ansible.builtin.to_yaml)) }}"
     - name: Mount Virtual Machine cidata ISO DVD Drive
       microsoft.hyperv.hv_dvd_drive:
         vm_name: "{{ vm_create_name }}"
@@ -147,7 +156,7 @@
         timeout: 300 # 5m
         search_regex: OpenSSH
       delegate_to: localhost
-    - name: Execute a guest command
+    - name: Wait Virtual Machine WinRM
       changed_when: false
       microsoft.hyperv.hv_guest_command:
         name: "{{ vm_create_name }}"
@@ -155,10 +164,22 @@
           username: "{{ ansible_user }}"
           password: "{{ ansible_password }}"
         script: |
-          $PSVersionTable
-      register: vm_create_guest_command
-    - name: Show guest command result
-      ansible.builtin.debug:
-        msg:
-          - "STDOUT:\n{{ vm_create_guest_command.stdout }}"
-          - "STDERR:\n{{ vm_create_guest_command.stderr }}"
+          while (-not (Test-WSMan -ComputerName localhost -ErrorAction SilentlyContinue)) {
+            Start-Sleep -Seconds 5
+          }
+    - name: Wait for cloud-init to finish
+      changed_when: false
+      microsoft.hyperv.hv_guest_command:
+        name: "{{ vm_create_name }}"
+        guest_credential:
+          username: "{{ ansible_user }}"
+          password: "{{ ansible_password }}"
+        script: |
+          $status = &"C:\Program Files\eryph\guest-services\bin\egs-service.exe" `
+            status `
+            --json `
+            --wait `
+            | ConvertFrom-Json
+          if ("Final" -notin $status.completedStages) {
+            throw "cloud-init did not complete successfully."
+          }
