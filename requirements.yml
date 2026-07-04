@@ -1,7 +1,7 @@
 collections:
   # see https://galaxy.ansible.com/ui/repo/published/ansible/utils
   - name: ansible.utils
-    version: 6.0.2
+    version: 6.0.3
   # see https://galaxy.ansible.com/ui/repo/published/ansible/windows
   - name: ansible.windows
     version: 3.6.1
@@ -10,7 +10,7 @@ collections:
     version: 1.6.0
   # see https://galaxy.ansible.com/ui/repo/published/community/general
   - name: community.general
-    version: 13.0.1
+    version: 13.1.0
   # see https://galaxy.ansible.com/community/windows
   - name: community.windows
     version: 3.2.0

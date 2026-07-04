@@ -23,7 +23,7 @@
     name: chocolatey
     # see https://community.chocolatey.org/packages/chocolatey
     # renovate: datasource=nuget:chocolatey depName=chocolatey
-    version: '2.7.1'
+    version: '2.7.3'
     state: downgrade
 
 - name: Install Notepad3
@@ -31,5 +31,5 @@
     name: notepad3
     # https://community.chocolatey.org/packages/notepad3
     # renovate: datasource=nuget:chocolatey depName=notepad3
-    version: '7.26.426.1'
+    version: '7.26.602.1'
     state: downgrade
