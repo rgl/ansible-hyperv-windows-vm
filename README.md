@@ -12,7 +12,7 @@ Install a Windows machine with Hyper-V, [`wasmtime`](https://github.com/bytecode
 
 Configure an External Virtual Switch named `Bridge` in your Hyper-V environment.
 
-Install the [test/templates/windows-2022-amd64 virtual machine template](https://github.com/rgl/windows-vagrant) in your Hyper-V environment.
+Install the [windows-2022-uefi-amd64 vagrant box](https://github.com/rgl/windows-vagrant) in your Hyper-V environment.
 
 Execute the following procedure in a Ubuntu machine.
 
@@ -27,7 +27,7 @@ cat >secrets.sh <<'EOF'
 export VM_HYPERV_HOSTNAME='192.168.8.22'
 export VM_HYPERV_USERNAME='Administrator'
 export VM_HYPERV_PASSWORD='vagrant'
-export VM_HYPERV_TEMPLATE='C:/Users/Administrator/.vagrant.d/boxes/windows-2022-amd64/0.0.0/hyperv/Virtual Hard Disks/packer-windows-2022-amd64.vhdx'
+export VM_HYPERV_TEMPLATE='C:/Users/Administrator/.vagrant.d/boxes/windows-2022-uefi-amd64/0.0.0/hyperv/Virtual Hard Disks/packer-windows-2022-uefi-amd64.vhdx'
 export VM_HYPERV_STORAGE='C:/ProgramData/Microsoft/Windows/Hyper-V/Virtual Machines'
 export VM_SWITCH='Bridge'
 #export VM_VLAN_MODE='Access'
@@ -41,8 +41,8 @@ source secrets.sh
 Lint the playbooks:
 
 ```bash
-./ansible-lint.sh --offline --parseable example.yml || echo 'ERROR linting'
-./ansible-lint.sh --offline --parseable example-destroy.yml || echo 'ERROR linting'
+./ansible-lint.sh --offline --format=pep8 example.yml || echo 'ERROR linting'
+./ansible-lint.sh --offline --format=pep8 example-destroy.yml || echo 'ERROR linting'
 ```
 
 List the inventory:
